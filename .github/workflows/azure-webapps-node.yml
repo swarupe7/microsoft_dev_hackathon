@@ -78,7 +78,8 @@
 #         package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
 
-name: Build and deploy Next.js app to Azure Web App - next-app
+
+name: Build and deploy Next.js app to Azure - next-app
 
 on:
   push:
@@ -116,15 +117,19 @@ jobs:
       - name: Prepare deployment package
         run: |
           mkdir -p deploy
-          cp -r . deploy/
-          rm -rf deploy/.git
-          rm -rf deploy/.github
-          rm -rf deploy/node_modules
-          rm -rf deploy/deploy
+
+          rsync -a \
+            --exclude='/deploy/' \
+            --exclude='/node_modules/' \
+            --exclude='/.git/' \
+            --exclude='/.github/' \
+            ./ deploy/
 
           cd deploy
           npm ci --omit=dev
-          npm cache clean --force
+
+          test -x node_modules/.bin/next
+          test -d .next
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -146,12 +151,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: next-app-package
-          path: .
+          path: package
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: next-app
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: package
 
